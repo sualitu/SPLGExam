@@ -10,6 +10,7 @@
 
 # Sublime Text:
 *.sublime-workspace
+*.sublime-project
 
 # LaTeX:
 *.acn

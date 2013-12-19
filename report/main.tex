@@ -1,4 +1,348 @@
-List are under specified. 
-Therefore type of insertion sort is not a very strong proposition, which means that the implementation doesn't proof much.
+%!TEX TS-options = -shell-escape
+\documentclass[oribibl, fleqn]{llncs}
+\pagestyle{headings}
+\bibliographystyle{plain}
+\usepackage{agda}
+\usepackage{alltt}
+\usepackage{todonotes}
+\usepackage{amsmath, amssymb}
+\usepackage{tabularx}
+\usepackage{float}
+\usepackage{listings}
+\newenvironment{changemargin}[2]{%
+\begin{list}{}{%
+\setlength{\topsep}{0pt}%
+\setlength{\leftmargin}{#1}%
+\setlength{\rightmargin}{#2}%
+\setlength{\listparindent}{\parindent}%
+\setlength{\itemindent}{\parindent}%
+\setlength{\parsep}{\parskip}%
+}%
+\item[]}{\end{list}}
+\begin{document}
+\newcommand{\justif}[2]{&{#1}&\text{#2}}
+\mainmatter
+\title{SPLG Exam Project}
+\author{Sune Alkærsig \\
+\email{sual@itu.dk}}
+\newcounter{index}
+\newcommand{\counting}{\stepcounter{index}\theindex}
 
-current implementation is on nats, but can be generalized. done for ease of implementing
+
+\institute{IT University of Copenhagen, Rued Langgaards Vej 7, 2300 Copenhagen S, Denmark}
+\maketitle
+\section{Introduction}
+This is my exam project for the SPLG course. I have chosen the third option involving dependent types and bag equality. A side from this report there are three files of code. These files can be found ion the attached CD and on GitHub at \todo{insert Github url}. Furthermore \texttt{SPLGExamProject\_sual.agda} can be found in the appendix. \texttt{SPLGExamProject\_sual.agda} contains my implementation, and the files \texttt{Prelude.agda} and \texttt{Lecture3Delivery.agda} were handed out as part of the SPLG course.
+
+\section{Solution}
+The project description is divided into two questions. In this section I will describe how I have come to the solutions to these problems.
+
+\begin{quote}
+1. Write a straightforward insertion sort on lists. Extrinsically prove that the input list is bag-equal to the output list, using the notion of bag equality from Lecture 3.
+\end{quote}
+
+The first part of this is to implement an insertion sort on lists. This can be solved in a straightforward Haskell-like way. For the sake of simplicity of the proof later I have decided to only do this sort function on natural numbers. Generalizing this would only change the clarity of the proof, and not much about the actual proof itself.
+
+\begin{figure}
+\begin{alltt}
+insert : Nat → List Nat → List Nat
+insert x [] = x :: []
+insert x (y :: xs) with min x y
+insert x (y :: xs) | left  x<=y = x :: y :: xs
+insert x (y :: xs) | right y<=x = y :: insert x xs
+
+insertionSort : List Nat → List Nat
+insertionSort [] = []
+insertionSort (x :: xs) = insert x (insertionSort xs)
+\end{alltt}
+\caption{\texttt{insertionSort} function on \texttt{List Nat} with helper function \texttt{insert}.}
+\label{fig:insertionSort}
+\end{figure}
+
+\texttt{insertionSort} works by matching on the list. The empty list case is easy: The list is already sorted. The \texttt{::} will take the first number \texttt{x} and insert it into the sorted version of \texttt{xs}. \texttt{insert} will insert a number into the appropriate place in the list, and works by matching on lists. Inserting an number into the empty list is simply just a list with the number. In the \texttt{::} case we have to compare the first number of the list, \texttt{y}, with the number we wish to insert, \texttt{x}. If \texttt{x} is less than or equal to \texttt{y} we have found the place for \texttt{x}. If not, \texttt{y} goes on the front of the list, and \texttt{insert} is called recursively for \texttt{x} on the tail.
+
+The next part is to then extrinsically prove that a list is bag equal to the sorted list. Nils Anders Danielsson defines bag equality (or equivalence) as equality up to reordering of elements\,\cite{DBLP:conf/itp/Danielsson12}. This means that two lists are bag equal if they contain the same elements, regardless of the order they appear in. In lecture three of the SPLG course we were given the definition for bag equality on lists seen in Figure~\ref{fig:bag_eq}, which is what I have use in this project.
+
+\begin{figure}
+\begin{alltt}
+_=bag_ : forall {A} -> List A -> List A -> Set
+xs =bag ys = (z : _) → Elem z xs <-> Elem z ys
+\end{alltt}
+\caption{Definition of bag equality on lists by David Raymond Christiansen and Mats Daniel Gustafsson.}
+\label{fig:bag_eq}
+\end{figure}
+
+Two lists are defined to be bag equal if for a function taking a \texttt{z}, then \texttt{Elem z} must yield the same result for both lists. \texttt{Elem} is defined by \texttt{Any}, which roughly states that if a proposition P holds for a list, then it either holds for the head of the list, or for an element in the tail. The exact definition of \texttt{Elem} and \texttt{Any} can be seen in the \texttt{Lecture3Delivery.agda}, which is both found on the GitHub repository related to this project, or on the SPLG course page.
+
+In order to proof that a list is bag equal to the sorted list, we must have a way of first writing a proposition, and later a proof for that proposition. We can do this in Agda because of the \emph{Curry-Howard Correspondence}\cite[p. 108]{Pierce:TypeSystems}, which relates logics and type theory. In general, logical propositions correspond to types, and a proof of a proposition P corresponds to a term with type P. This means that if we define a type for a function expressing what we want to prove, we can prove it by making an implementation the type checker accepts. Figure~\ref{fig:Proof_Proposition} shows a function signature with a type using the bag equality from Figure~\ref{fig:bag_eq}. This type acts as the proposition we want to prove, and as such the implementation will be a proof.
+
+\begin{figure}
+\begin{alltt}
+insSortKeepsBagEq : (l : List Nat) → insertionSort l =bag l 
+\end{alltt}
+\caption{Type describing bag equality for \texttt{insertionSort}.}
+\label{fig:Proof_Proposition}
+\end{figure}
+
+This function uses \texttt{<->[ ]} for isomorphism transitivity to show that an isomorphism exists between two terms. This, and other isomorphism related functions can be found in \texttt{Lecture3Delivery.agda}. I will not go into detail about the Agda code, but overall this function pattern matches on the list, and uses the function in Figure~\ref{fig:lemmafunction} and a recursive call. How this relates to a proof will be discussed in Section~\ref{sec:proof}.
+
+\begin{figure}
+\begin{alltt}
+isInInsert : ∀ {x xs P} → Any P (insert x xs) <-> Either (P x) (Any P xs)
+
+\end{alltt}
+\caption{Type describing that an element is in a list after being inserted.}
+\label{fig:lemmafunction}
+\end{figure}
+
+The second question is:
+
+\begin{quote}
+2. Write an insertion sort that produces the proof of bag equality along with the list. It should return dependent pair whose first element is the sorted list and whose second element is a proof that the first element is bag equal to the input list.
+\end{quote}
+
+Since we have already defined insertion sort and we have a way of producing a proof that the original list is bag equal to the sorted list, this is straightforward. Simply construct a dependent pair between the sorted list and the proof of that list.
+
+\subsection{Handwritten Proof}
+\label{sec:proof}
+Rather than explain each step the functions go through I will in this section use the \emph{Curry-Howard correspondence} to construct a logical expression matching the function type of \texttt{insSortKeepsBagEq}, and prove its correctness. 
+To do this we must first translate the definition of bag equality. Since bag equality is defined by \texttt{Elem}, which is defined by \texttt{Any} we must first translate this. \texttt{Any} has two different cases. I have omitted the empty list case as it is not really interesting.
+
+\begin{figure}
+\centerline{
+$\forall z\; x\; xs.\quad z\in (x::xs)\quad \leftrightarrow \quad x\equiv z \quad \vee \quad z\in xs$
+}
+\caption{Logical definition of \texttt{Elem} and \texttt{Any}.}
+\label{fig:any_log}
+\end{figure}
+
+Firstly, the \texttt{Elem} function has been replaced by $\in$. Secondly, the \texttt{Either} has, according to the \emph{Curry-Howard correspondence}, been translated to a \emph{disjunction}. Lastly, the parameters of the function (both \emph{implicit} and \emph{explicits}) has been translated to universally quantified variables. This gives us the definition of bag equality seen in Figure~\ref{fig:bag_eq_log}.
+
+\begin{figure}
+\centerline{
+$\forall xs\; ys. \quad xs =_{bag} ys \quad \leftrightarrow \quad  (\forall z. \quad z\in xs \quad \leftrightarrow \quad z \in ys)$
+}
+\caption{Logical definition of bag equality.}
+\label{fig:bag_eq_log}
+\end{figure}
+
+\begin{figure}
+\texttt{insert:}\\
+\centerline{
+$\forall x. \quad insert \;x \; [] \quad \leftrightarrow \quad x :: []$
+}
+\centerline{
+  $\forall x\;y. \quad x \leq y \quad \to \quad \forall xs. \quad insert\;x\;(y :: xs) \quad \leftrightarrow \quad x :: y :: xs$
+}
+\centerline{
+  $\forall x\;y. \quad y \leq x \quad \to \quad \forall xs. \quad insert\;x\;(y :: xs) \quad \leftrightarrow \quad y :: (insert\;x\;xs)$
+}
+\texttt{insertionSort:} \\
+\centerline{
+$insertionSort\;[] \quad \leftrightarrow \quad []$
+}
+\centerline{
+$\forall x\;xs. \quad insertionSort\;(x :: xs) \quad \leftrightarrow \quad insert\;x\;(insertionSort\;xs)$
+}
+\caption{\texttt{insert} and \texttt{insertionSort}.}
+\label{fig:ins_log}
+\end{figure}  
+
+From the implementation of \texttt{insert} and \texttt{insertionSort} follows the definitions in Figure~\ref{fig:ins_log}. With this we can now translate the type of the function in Figure~\ref{fig:Proof_Proposition} to a proposition, and prove it. This can be seen in \textbf{Theorem 1}. The proof of this can be found in \texttt{SPLGExamProject\_sual.agda} and starts on line 64. Throughout this proof I will refer to the indices of the proof as annotated in the proof (i.e. (1)).
+
+\begin{figure}[H]
+\begin{theorem} For all lists the sorted list is bag equal to the original list.
+\begin{proof}
+ $\forall z\;l.\quad z\in insertionSort\;l\quad \leftrightarrow \quad z\in l$ \\ 
+\textbf{Induction\;on\;}$l:$ \\
+$Base\;case:$ \\
+$l = []$ \\
+$Goal:$
+\begin{alignat*}{2}
+\forall z.\quad z\in insertionSort\;[]\quad \leftrightarrow \quad z\in [] \justif{\quad}{(\counting)} 
+\end{alignat*} 
+\noindent
+$Step\;case:$ \\
+$l = x :: xs$ \\
+$IH: \forall z.\quad z\in insertionSort\;xs\quad \leftrightarrow \quad z\in xs$ \\
+$Goal:$ \\
+\begin{alignat*}{2}
+\forall z.\quad z\in insertionSort\;x :: xs\quad \leftrightarrow \quad z\in x :: xs \justif{\quad}{(\counting)} 
+\end{alignat*} 
+\begin{alignat*}{2}
+\forall z.\quad z\in insertionSort\;x :: xs\quad &\leftrightarrow \quad z\in (insert\; (x\;insertionSort\;xs)) \justif{\quad}{(\counting) Lemma 1} \\
+&\leftrightarrow \quad z \equiv x \; \vee \; z\in insertionSort\;xs \justif{\quad}{(\counting) IH} \\
+&\leftrightarrow \quad z \equiv x \; \vee \; z\in \;xs \justif{\quad}{(\counting) Def} \\
+&\leftrightarrow \quad z\in x :: xs \\ \justif{\quad}{\qed}
+\end{alignat*} 
+\end{proof}
+\end{theorem}
+\end{figure}
+
+
+The proof of \textbf{Theorem 1} is by induction on the input list $l$, which corresponds to pattern matching in Agda. The base case $(1)$ is simple since it comes from the definition of insertionSort from Figure~\ref{fig:ins_log}. In Agda this is done with \texttt{=bag-refl} on line 69. Next follows the step case. When proving with induction we then say we have an \emph{induction hypothesis}. In Agda the induction hypothesis is a recursive call with the decreased element, in this case $xs$. From this induction hypothesis we now have to prove $(2)$. At (3) we use \textbf{Lemma 1}, which proves that if $z$ is in $insert\;x\;xs$, it is either equal to $x$ or $z \in xs$. (4) then applies the induction hypothesis at which point we are only a simple rewrite away from being done.
+
+\begin{figure}[H]
+\begin{lemma} If z is a member of (insert x xs), then either z is equivalent to x or z is a member of xs.
+\begin{proof} $\forall z \;x\; xs. \quad z\in (insert\;x\;xs)\; \leftrightarrow \; x\equiv z\quad \vee \quad z\;\in \; xs $ \\
+\textbf{Induction\;on\;}$xs:$ \\
+$Base\;case:$ \\
+$xs = []$ \\
+$Goal:$
+$\forall z \;x. \quad z\in (insert\;x\;[])\; \leftrightarrow \; x\equiv z\quad \vee \quad z\;\in \; []$
+\begin{alignat*}{2}
+\forall z \;x. \quad z\in (insert\;x\;[])\; &\leftrightarrow \; z\in \;x :: []\; \justif{\quad}{(\counting) } \\
+&\leftrightarrow \; x\equiv z\quad \vee \quad z\;\in \; [] \justif{\quad}{(\counting) }
+\end{alignat*} 
+\noindent
+$Step\;case:$ \\
+$xs = y :: xs'$ \\
+$IH: \forall z \;x\; xs'. \quad z\in (insert\;x\;xs')\; \leftrightarrow \; x\equiv z\quad \vee \quad z\;\in \; xs'$ \\
+$Goal:$ \\
+$\forall z \;x\; y\;xs'. \quad z\in (insert\;x\;(y :: xs'))\; \leftrightarrow \; x\equiv z\quad \vee \quad z\;\in \; (y :: xs')$ \\
+Case x $\leq$ y:
+\begin{alignat*}{2}
+\forall z \;x\; y \;xs'. \quad z\in (insert\;x\;(y :: xs'))\; &\leftrightarrow \; z\in (x :: y :: xs') \justif{\quad}{(\counting) } \\
+&\leftrightarrow \; x\equiv z\quad \vee \quad z\;\in \; (y :: xs') \justif{\quad}{(\counting) } 
+\end{alignat*} 
+Case y $\leq$ x:
+\begin{alignat*}{2}
+\forall z \;x\; y \;xs'. \quad z\in (insert\;x\;(y :: xs'))\; &\leftrightarrow \; z\in (y :: (insert\;x\;xs')) \justif{\quad}{(\counting) By IH} \\
+&\leftrightarrow \; y\equiv z\quad \vee \quad z\;\in \; insert (x\; xs') \justif{\quad}{(\counting)}  \\
+&\leftrightarrow \; y\equiv z\quad \vee \quad z\;\in \;  (x :: xs') \justif{\quad}{(\counting) }  \\
+&\leftrightarrow \; y\equiv z\quad \vee \quad (x \equiv z \quad \vee \quad z\;\in \;  xs') \justif{\quad}{(\counting) }  \\
+&\leftrightarrow \; x\equiv z\quad \vee \quad (y \equiv z \quad \vee \quad z\;\in \; xs') \justif{\quad}{(\counting) } \\
+&\leftrightarrow \; x\equiv z\quad \vee \quad z\;\in \; (y :: xs') \\ \justif{\quad}{\qed } 
+\end{alignat*} 
+\end{proof}
+\end{lemma}
+\end{figure}
+
+Although \textbf{Theorem 1} is now proven we relied on \textbf{Lemma 1} to prove it. \textbf{Lemma 1} is proven by induction on the input list $xs$. Again the base case is fairly trivial as it comes from our previous definitions. The step case is more interesting. In Figure~\ref{fig:ins_log} we see that \texttt{insert} behaves differently depending on the relationship between the element to be inserted, \texttt{x}, and the first element of the list \texttt{y}. Therefore we must do a proof by case analysis. The case where $x\leq y$ is simple since it follows from the definitions in Figures~\ref{fig:any_log} and \ref{fig:ins_log}.
+
+The case where $y\leq x$ is more interesting. We first do a simple rewrite based on the definition of \texttt{insert}. We then apply the induction hypothesis in (10). From then on its simple rewrites using existing definitions, and the commutative and associative properties of disjunction. This then concludes the answer to the first question.
+
+Due to the triviality of the proof for the second question I will not go into detail about that. The code should be self-explanatory. I will however discuss how the function would look as a proposition.
+
+\begin{figure}
+\begin{alltt}
+insSortWithProof : ∀ (l : List Nat) → (List Nat ** λ sl → sl =bag l)
+\end{alltt}
+\label{fig:last_proof_agda}
+\end{figure}
+
+The most interesting part of this is that the dependent pair corresponds to existential quantification.
+
+\begin{figure}
+\centerline{
+$\forall l.\quad\exists sl.\quad sl =_{bag} l$
+}
+\label{fig:last_proof_prop}
+\end{figure}
+
+\section{Conclusion}
+I have in this project implemented an insertion sort on lists and proven that it does not throw any elements away. I have proven this extrinsically both in Agda, and by hand. I have also discussed the \emph{Curry-Howard correspondence}, when relating the two different proof techniques. Specifically the correspondences between:
+\begin{itemize}
+ \item Either A B and A $\vee$ B
+ \item Dependent function space and universally quantification
+ \item Dependent pairs and existential quantification
+ \item Mathematical induction and pattern matching
+ \item Induction hypothesis and recursive calls
+\end{itemize}
+\bibliography{bibliography}
+
+\clearpage 
+\section{Appendix}
+\subsection{\texttt{SPLGExamProject\_sual.agda}}
+\begin{changemargin}{-2.5cm}{-2.5cm}
+\begin{alltt}
+\begin{scriptsize}
+module SPLGExamProject_sual where
+
+open import Prelude
+open import Lecture3Delivery
+
+open Lists
+open Nats
+open Eq
+open Sum
+open LessThan
+
+min : (n m : Nat) → Either (n <= m) (m <= n)
+min zero m = left zero<=
+min (suc n) zero = right zero<=
+min (suc n) (suc m) with min n m
+min (suc n) (suc m) | left x = left (suc<= x)
+min (suc n) (suc m) | right x = right (suc<= x)
+
+insert : Nat → List Nat → List Nat
+insert x [] = x :: []
+insert x (y :: xs) with min x y
+insert x (y :: xs) | left  x<=y = x :: y :: xs
+insert x (y :: xs) | right y<=x = y :: insert x xs
+
+insertionSort : List Nat → List Nat
+insertionSort [] = []
+insertionSort (x :: xs) = insert x (insertionSort xs)
+
+open BagEquality
+open Isomorphisms
+open IsomorphismSyntax
+
+-- Lemma 1: If P holds for an element in insert x xs, then P either holds for x or for xs.
+isInInsert : ∀ {x xs P} → Any P (insert x xs) <-> Either (P x) (Any P xs)
+-- Induction on the base list.
+-- Base case:
+-- Any P (insert x []) <-> Either (P x) (Any P [])
+-- Any P (insert x []) simplifies to: Any P (x :: [])
+-- which simplifies to Either (P x) (Any P [])
+-- Therefore this is trivial.
+isInInsert {x} {[]} {P} = iso-refl
+-- Step case: 
+-- Any P (insert x (y :: xs)) <-> Either (P x) (Any P (y :: xs)
+-- Induction hypothesis: Any P (insert x xs) <-> Either (P x) (Any P xs)
+-- Case analysis on the relationship between x and y
+isInInsert {x} {y :: xs} {P} with min x y 
+-- If x is less than or equal to y the case is trivial.
+-- In this case insert simplifies to x :: y :: xs
+-- which is the cons case.
+-- Therefore we know the isomorphism to hold by the definition of Any
+isInInsert {x} {y :: xs} {P} | left x<=y  = iso-refl
+-- If y is less than or equal to x this simplifies to y :: (insert x xs).
+-- This means that we have that P either holds for y, or for an element in insert x xs
+isInInsert {x} {y :: xs} {P} | right y<=x = Either (P y)                (Any P (insert x xs))     <->[ Either-cong iso-refl (isInInsert) ]
+-- Here I use the induction hypothesis (isInInsert P) from earlier.
+-- I use Either-cong (from Lecture 3) to only apply the IH to the right branch. 
+                                            Either (P y)                (Either (P x) (Any P xs)) <->[ iso-sym Either-assoc ] 
+-- From here it is just simple rewrites on Either using different lemma from Lecture 3.
+                                            Either (Either (P y) (P x)) (Any P xs)                <->[ Either-cong Either-comm iso-refl ]
+                                            Either (Either (P x) (P y)) (Any P xs)                <->[ Either-assoc ] 
+                                            Either (P x)                (Either (P y) (Any P xs)) QED
+
+-- Theorem 1: Given a list of natural numbers, the sorted list is bag equal to the original list. 
+insSortKeepsBagEq : (l : List Nat) → insertionSort l =bag l 
+-- Induction on the list
+-- Base case:
+-- Any P insertionSort [] <-> Any P []
+-- insertionSort [] simplifies to [] making this case trivial.
+insSortKeepsBagEq [] = =bag-refl
+-- Step case:
+-- Any P insertionSort (x :: xs) <-> Any P (x :: xs)
+-- Induction hypothesis: Any P (insertionSort xs) <-> Any P xs 
+insSortKeepsBagEq (x :: xs) = λ z → Any (_==_ z) (insert x (insertionSort xs)) <->[ isInInsert ]
+-- Use Lemma 1 to rewrite
+                                    Either (z == x) (Any (_==_ z) (insertionSort xs)) <->[ Either-cong iso-refl (insSortKeepsBagEq xs z) ]
+-- Use induction hypothesis
+                                    Either (z == x) (Any (_==_ z) xs) QED
+
+open Sigma
+
+-- Theorem 2: Given a list of natural numbers, returns a dependent pair where the first element is the sorted list, 
+-- and the second element is a proof that the first element is bag equal to the input list.
+insSortWithProof : ∀ (l : List Nat) → (List Nat ** λ sl → sl =bag l)
+-- This is straightforward as it is just using our previous proof.
+insSortWithProof l = insertionSort l , insSortKeepsBagEq l
+\end{scriptsize}
+\end{alltt}
+\end{changemargin}
+\end{document}
